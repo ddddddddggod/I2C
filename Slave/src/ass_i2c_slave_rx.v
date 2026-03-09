@@ -42,6 +42,7 @@ module ass_i2c_slave_rx #(parameter [6:0] SLAVE_ADDR = 7'h74)(
     	.count_done (count_done),
     	.wdata 		(wdata),
     	.sda_out_bit(sda_out_bit),
+		.sda_in		(sda_in),
     	.sda_oe		(sda_oe),
     	.count_inc 	(count_inc),
     	.count_clr 	(count_clr),
