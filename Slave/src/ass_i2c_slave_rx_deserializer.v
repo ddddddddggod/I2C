@@ -2,8 +2,7 @@ module ass_i2c_slave_rx_deserializer (
     input clk,
     input rstb,
     input sda_in,
-    input shift_rx_en,
-    input shift_tx_en,
+    input shift_en,
     input load_data,
     input load_addr,
     input inc_addr,
@@ -18,12 +17,10 @@ module ass_i2c_slave_rx_deserializer (
     always @(posedge clk or negedge rstb) begin
         if (!rstb) begin
             shift_reg <= 8'h00;
-        end else if (load_data) begin
+        end else if (load_data) begin //read
             shift_reg <= rdata;
-        end else if (shift_rx_en) begin //write
+        end else if (shift_en) begin //write,read
             shift_reg <= {shift_reg[6:0], sda_in};
-        end else if (shift_tx_en) begin //read
-            shift_reg <= {shift_reg[6:0], 1'b0};
         end
     end
 
