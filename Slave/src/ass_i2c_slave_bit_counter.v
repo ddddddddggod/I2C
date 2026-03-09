@@ -2,7 +2,7 @@ module ass_i2c_slave_bit_counter(
     input clk,
     input rstb,
     input count_clr,           
-    input count_inc,            
+    input shift_en,         
     output count_done     
 );
 
@@ -13,7 +13,7 @@ module ass_i2c_slave_bit_counter(
             cnt_reg <= 3'd0;
         end else if (count_clr) begin
             cnt_reg <= 3'd0;
-        end else if (count_inc) begin
+        end else if (shift_en) begin
             cnt_reg <= cnt_reg + 1'b1;
         end
     end
