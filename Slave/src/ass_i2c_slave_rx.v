@@ -26,8 +26,8 @@ module ass_i2c_slave_rx #(parameter [6:0] SLAVE_ADDR = 7'h74)(
 		);
 
     //----------Rx Ctrl (FSM)--------------
-    wire count_inc, count_clr, count_done;
-    wire shift_rx_en, shift_tx_en, load_addr, inc_addr, load_data;
+    wire shift_en, count_clr, count_done;
+    wire load_addr, inc_addr, load_data;
     wire sda_out_bit;
 
     ass_i2c_slave_rx_ctrl #(
@@ -42,13 +42,11 @@ module ass_i2c_slave_rx #(parameter [6:0] SLAVE_ADDR = 7'h74)(
     	.count_done (count_done),
     	.wdata 		(wdata),
     	.sda_out_bit(sda_out_bit),
-		.sda_in		(sda_in),
+    	.sda_in     (sda_in),
     	.sda_oe		(sda_oe),
-    	.count_inc 	(count_inc),
     	.count_clr 	(count_clr),
     	.we 		(we),
-    	.shift_rx_en 	(shift_rx_en),
-    	.shift_tx_en 	(shift_tx_en),
+    	.shift_en 	(shift_en),
     	.load_addr  (load_addr),
     	.inc_addr 	(inc_addr),
     	.load_data  (load_data)
@@ -59,17 +57,16 @@ module ass_i2c_slave_rx #(parameter [6:0] SLAVE_ADDR = 7'h74)(
     	.clk 		(clk),
     	.rstb 		(rstb),
     	.count_clr  (count_clr),
-    	.count_inc  (count_inc),
+    	.shift_en  (shift_en),
     	.count_done (count_done)
     );
-    
+
     //---------De-serializer---------------
     ass_i2c_slave_rx_deserializer u_deserial (
     	.clk 		(clk),
     	.rstb 		(rstb),
     	.sda_in 	(sda_in),
-    	.shift_rx_en(shift_rx_en),
-    	.shift_tx_en(shift_tx_en),
+    	.shift_en 	(shift_en),
     	.load_data  (load_data),
     	.load_addr  (load_addr),
     	.inc_addr	(inc_addr),
