@@ -17,7 +17,6 @@ module ass_i2c_slave_rx_ctrl #(parameter [6:0] SLAVE_ADDR = 7'h74) (
     output inc_addr,
     output load_data
 );
-
     localparam st_idle    = 3'd0;
     localparam st_rx_byte = 3'd1;  
     localparam st_rx_ack  = 3'd2;  
@@ -26,12 +25,10 @@ module ass_i2c_slave_rx_ctrl #(parameter [6:0] SLAVE_ADDR = 7'h74) (
 
     reg [2:0] state, state_n;
     reg first_byte; 
-    reg addr_done;  
+    reg addr_done; 
+    reg rx_done; 
+
     wire addr_match = (wdata[7:1] == SLAVE_ADDR); 
-
-    reg rx_done;
-    reg captured_ack;
-
     // ------------------------------------------
     // 1. Current State & Flags
     // ------------------------------------------
@@ -41,31 +38,26 @@ module ass_i2c_slave_rx_ctrl #(parameter [6:0] SLAVE_ADDR = 7'h74) (
             first_byte   <= 1'b1;
             addr_done    <= 1'b0;
             rx_done      <= 1'b0;
-            captured_ack <= 1'b1;
         end else begin
-            if (start_det) begin
+            if (stop_det) begin
+                state        <= st_idle;
+            end else if (start_det) begin
                 state        <= st_rx_byte; 
                 first_byte   <= 1'b1;
                 addr_done    <= 1'b0;
                 rx_done      <= 1'b0;
-                captured_ack <= 1'b1;
             end else if (stop_det) begin
                 state        <= st_idle;
             end else begin
                 state <= state_n;
-
                 if (count_clr) 
                     rx_done <= 1'b0;
                 else if (state == st_rx_byte && count_done && scl_rising) 
                     rx_done <= 1'b1;
-
-                if (state == st_tx_ack && scl_rising) 
-                    captured_ack <= sda_in;
-
-                if (state == st_rx_ack && scl_falling) begin
-                    if (first_byte) first_byte <= 1'b0;
-                    else            addr_done  <= 1'b1;
-                end
+                    if (state == st_rx_ack && scl_falling) begin
+                        if (first_byte) first_byte <= 1'b0;
+                        else            addr_done  <= 1'b1;
+                    end
             end
         end
     end
@@ -91,7 +83,7 @@ module ass_i2c_slave_rx_ctrl #(parameter [6:0] SLAVE_ADDR = 7'h74) (
             st_tx_byte: state_n = (scl_falling && count_done) ? st_tx_ack : st_tx_byte;
             st_tx_ack: begin
                 if (scl_falling) begin
-                    state_n = (captured_ack == 1'b0) ? st_tx_byte : st_idle; 
+                    state_n = (sda_in == 1'b0) ? st_tx_byte : st_idle; 
                 end 
             end
             default: state_n = st_idle;
@@ -102,11 +94,10 @@ module ass_i2c_slave_rx_ctrl #(parameter [6:0] SLAVE_ADDR = 7'h74) (
     // 3. Output Logic
     // ------------------------------------------
     wire rx_ack_fall = (state == st_rx_ack) && scl_falling; 
-    wire tx_ack_fall_ack = (state == st_tx_ack) && scl_falling && (captured_ack == 1'b0); 
+    wire tx_ack_fall_ack = (state == st_tx_ack) && scl_falling && (sda_in == 1'b0); 
 
     assign shift_en  = ((state == st_rx_byte) && scl_rising) || ((state == st_tx_byte) && scl_falling);
-    assign count_clr = rx_ack_fall || (state == st_tx_ack && scl_falling) || start_det || (state == st_idle); 
-    
+    assign count_clr = rx_ack_fall || (state == st_tx_ack && scl_falling) || (state == st_idle); 
     assign load_addr = rx_ack_fall && ~first_byte && ~addr_done;
     assign we        = rx_ack_fall && ~first_byte &&  addr_done;
     assign inc_addr  = we || ((state == st_tx_byte) && scl_falling && count_done);
