@@ -33,6 +33,6 @@ module ass_i2c_slave_rx_sync(
 
 	// START/STOP detect (SCL high while SDA edge)
 	assign start_det = sda_falling && scl_in && !sda_oe;  //scl=HIGH, sda = HIGH->LOW
-	assign stop_det  = sda_rising  && scl_in && !sda_oe;  //scl=LOW, sda = LOW->HIGH
+	assign stop_det  = sda_rising  && scl_in && !sda_oe;  //scl= HIGH , sda = LOW->HIGH
 
 endmodule
