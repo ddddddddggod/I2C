@@ -17,102 +17,122 @@ module ass_i2c_slave_rx_ctrl #(parameter [6:0] SLAVE_ADDR = 7'h74) (
     output inc_addr,
     output load_data
 );
-    localparam st_idle    = 3'd0;
-    localparam st_rx_byte = 3'd1;  
-    localparam st_rx_ack  = 3'd2;  
-    localparam st_tx_byte = 3'd3;  
-    localparam st_tx_ack  = 3'd4;  
 
-    reg [2:0] state, state_n;
-    reg first_byte; 
-    reg addr_done; 
-    reg rx_done; 
+localparam [3:0] st_idle    = 3'd0;
+localparam [3:0] st_rx_byte = 3'd1;  
+localparam [3:0] st_rx_ack  = 3'd2;  
+localparam [3:0] st_tx_byte = 3'd3;  
+localparam [3:0] st_tx_ack  = 3'd4;  
 
-    wire addr_match = (wdata[7:1] == SLAVE_ADDR); 
-    // ------------------------------------------
-    // 1. Current State & Flags
-    // ------------------------------------------
+reg [2:0] state, state_n;
+reg first_byte; 
+reg addr_done; 
+reg rx_done; 
+
+wire addr_match = (wdata[7:1] == SLAVE_ADDR);
+wire rx_ack_fall = (state == st_rx_ack) && scl_falling;
+wire tx_ack_fall = (state == st_tx_ack) && scl_falling;
+wire rx_byte_rise =  (state == st_rx_byte) && scl_rising;
+wire tx_byte_fall = (state == st_tx_byte) && scl_falling;
+
+// ------------------------------------------
+// 1. Current State & Flags
+// ------------------------------------------
+always @(posedge clk or negedge rstb) begin
+    if (!rstb) begin
+        state <= st_idle;
+    end else begin
+        if (stop_det) begin
+            state <= st_idle;
+        end else if (start_det) begin
+            state <= st_rx_byte; 
+        end else begin
+            state <= state_n;
+        end
+    end
+end
+
+//flag : first byte
+wire init = stop_det || start_det;
     always @(posedge clk or negedge rstb) begin
         if (!rstb) begin
-            state        <= st_idle;
-            first_byte   <= 1'b1;
-            addr_done    <= 1'b0;
-            rx_done      <= 1'b0;
-        end else begin
-            if (stop_det) begin
-                state        <= st_idle;
-            end else if (start_det) begin
-                state        <= st_rx_byte; 
-                first_byte   <= 1'b1;
-                addr_done    <= 1'b0;
-                rx_done      <= 1'b0;
-            end else if (stop_det) begin
-                state        <= st_idle;
-            end else begin
-                state <= state_n;
-                if (count_clr) 
-                    rx_done <= 1'b0;
-                else if (state == st_rx_byte && count_done && scl_rising) 
-                    rx_done <= 1'b1;
-                    if (state == st_rx_ack && scl_falling) begin
-                        if (first_byte) first_byte <= 1'b0;
-                        else            addr_done  <= 1'b1;
-                    end
-            end
+            first_byte <= 1'b1;
+        end else if (init) begin
+            first_byte <= 1'b1;
+        end else if(rx_ack_fall) begin  
+            first_byte <= 1'b0;
         end
     end
 
-    // ------------------------------------------
-    // 2. Next State Logic
-    // ------------------------------------------
-    always @(*) begin
-        state_n = state;
-        case (state)
-            st_idle: state_n = st_idle;
-            st_rx_byte: state_n = (scl_falling && rx_done) ? st_rx_ack : st_rx_byte;
-            st_rx_ack: begin
-                if (scl_falling) begin
-                    if (first_byte) begin 
-                        if (addr_match) state_n = (wdata[0] == 1'b0) ? st_rx_byte : st_tx_byte; 
-                        else            state_n = st_idle; 
-                    end else begin
-                        state_n = st_rx_byte; 
-                    end
+//flag : addr_done
+    always @(posedge clk or negedge rstb) begin
+        if (!rstb) begin
+            addr_done <= 1'b0;
+        end else if (init)begin
+            addr_done <= 1'b0;
+        end else if (rx_ack_fall && ~first_byte) begin            
+            addr_done  <= 1'b1;     
+        end
+    end
+
+//flag : rx_done
+wire init_x = init || count_clr;
+always @(posedge clk or negedge rstb) begin
+    if (!rstb) begin
+        rx_done <= 1'b0;
+    end else if (init_x)begin
+        rx_done <= 1'b0;
+    end else if (rx_byte_rise && count_done) begin
+        rx_done <= 1'b1;
+    end
+end
+
+// ------------------------------------------
+// 2. Next State Logic
+// ------------------------------------------
+wire [2:0] next_tx_ack_val = (sda_in == 1'b0) ? st_tx_byte : st_idle; 
+always @(*) begin
+    state_n = state;
+    case (state)
+        st_idle: state_n = st_idle;
+        st_rx_byte: state_n = (scl_falling && rx_done) ? st_rx_ack : st_rx_byte;
+        st_rx_ack: begin
+            if (scl_falling) begin
+                if (first_byte) begin 
+                    if (addr_match) state_n = (wdata[0] == 1'b0) ? st_rx_byte : st_tx_byte; 
+                    else            state_n = st_idle; 
+                end else begin
+                    state_n = st_rx_byte; 
                 end
             end
-            st_tx_byte: state_n = (scl_falling && count_done) ? st_tx_ack : st_tx_byte;
-            st_tx_ack: begin
-                if (scl_falling) begin
-                    state_n = (sda_in == 1'b0) ? st_tx_byte : st_idle; 
-                end 
-            end
-            default: state_n = st_idle;
-        endcase
-    end
-
-    // ------------------------------------------
-    // 3. Output Logic
-    // ------------------------------------------
-    wire rx_ack_fall = (state == st_rx_ack) && scl_falling; 
-    wire tx_ack_fall_ack = (state == st_tx_ack) && scl_falling && (sda_in == 1'b0); 
-
-    assign shift_en  = ((state == st_rx_byte) && scl_rising) || ((state == st_tx_byte) && scl_falling);
-    assign count_clr = rx_ack_fall || (state == st_tx_ack && scl_falling) || (state == st_idle); 
-    assign load_addr = rx_ack_fall && ~first_byte && ~addr_done;
-    assign we        = rx_ack_fall && ~first_byte &&  addr_done;
-    assign inc_addr  = we || ((state == st_tx_byte) && scl_falling && count_done);
-    assign load_data = (rx_ack_fall && first_byte && addr_match && wdata[0]) || tx_ack_fall_ack;
-
-    // ------------------------------------------
-    // 4. sda_oe
-    // ------------------------------------------
-    always @(*) begin
-        if (state == st_rx_ack) begin
-            sda_oe = (addr_match || !first_byte) ? 1'b1 : 1'b0;
-        end else if (state == st_tx_byte) begin
-            sda_oe = ~sda_out_bit; 
-        end else begin
-            sda_oe = 1'b0; 
         end
+        st_tx_byte: state_n = (scl_falling && count_done) ? st_tx_ack : st_tx_byte;
+        st_tx_ack: state_n = (scl_falling) ? next_tx_ack_val : st_tx_ack;
+    endcase
+end
+
+// ------------------------------------------
+// 3. Output Logic
+// -----------------------------------------
+
+assign shift_en  = rx_byte_rise || tx_byte_fall;
+assign count_clr = rx_ack_fall || tx_ack_fall || (state == st_idle); 
+assign load_addr = rx_ack_fall && ~first_byte && ~addr_done;
+assign we        = rx_ack_fall && ~first_byte &&  addr_done;
+assign inc_addr  = we || (tx_byte_fall) && count_done;
+assign load_data = (rx_ack_fall && first_byte && addr_match && wdata[0]) || tx_ack_fall; 
+
+// ------------------------------------------
+// 4. sda_oe
+// ------------------------------------------
+always @(*) begin
+    if (state == st_rx_ack) begin
+        sda_oe = (addr_match || !first_byte); 
+    end else if (state == st_tx_byte) begin
+        sda_oe = ~sda_out_bit; 
+    end else begin
+        sda_oe = 1'b0; 
     end
+end
+
 endmodule
