@@ -86,26 +86,21 @@ always @(posedge clk or negedge rstb) begin
         rx_done <= 1'b1;
     end
 end
-
 // ------------------------------------------
 // 2. Next State Logic
 // ------------------------------------------
 wire [2:0] next_tx_ack_val = (sda_in == 1'b0) ? st_tx_byte : st_idle; 
+wire [2:0] rw_next_state = (wdata[0] == 1'b0) ? st_rx_byte : st_tx_byte; //0:write, 1:read
+wire [2:0] addr_phase_next = (addr_match) ? rw_next_state : st_idle; // address matching
+wire [2:0] phase_next      = (first_byte) ? addr_phase_next : st_rx_byte; //address stage or data stage
+
+
 always @(*) begin
     state_n = state;
     case (state)
         st_idle: state_n = st_idle;
         st_rx_byte: state_n = (scl_falling && rx_done) ? st_rx_ack : st_rx_byte;
-        st_rx_ack: begin
-            if (scl_falling) begin
-                if (first_byte) begin 
-                    if (addr_match) state_n = (wdata[0] == 1'b0) ? st_rx_byte : st_tx_byte; 
-                    else            state_n = st_idle; 
-                end else begin
-                    state_n = st_rx_byte; 
-                end
-            end
-        end
+        st_rx_ack: state_n = (scl_falling) ? phase_next : st_rx_ack;
         st_tx_byte: state_n = (scl_falling && count_done) ? st_tx_ack : st_tx_byte;
         st_tx_ack: state_n = (scl_falling) ? next_tx_ack_val : st_tx_ack;
     endcase
@@ -116,11 +111,11 @@ end
 // -----------------------------------------
 
 assign shift_en  = rx_byte_rise || tx_byte_fall;
-assign count_clr = rx_ack_fall || tx_ack_fall || (state == st_idle); 
+assign count_clr = rx_ack_fall || tx_ack_fall || (state == st_idle) || start_det; 
 assign load_addr = rx_ack_fall && ~first_byte && ~addr_done;
 assign we        = rx_ack_fall && ~first_byte &&  addr_done;
 assign inc_addr  = we || (tx_byte_fall) && count_done;
-assign load_data = (rx_ack_fall && first_byte && addr_match && wdata[0]) || tx_ack_fall; 
+assign load_data = (rx_ack_fall && first_byte && addr_match && wdata[0]) || tx_ack_fall; //read set (address) or next read data preparing.
 
 // ------------------------------------------
 // 4. sda_oe
