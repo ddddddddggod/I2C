@@ -1,6 +1,5 @@
 # I2C
 ---
-*shift register는 rx,tx 따로 나누지 않고 하나로 만들었다.
-- Slave : 하나의 FSM으로 만든 모듈. (flag를 활용해 state의 수를 줄임.)
-- Slave ver2 : FSM을 I2C protocol FSM과 Packet FSM으로 나눈 모듈. (Datapath는 slave모듈과 동일함.)
-   *robust한 design임을 확인하기 위해 testbench에 경우 추가.
+*The shift register was implemented as a unified structure without separating RX and TX register. (for Read & Write)
+- **Slave** : Implemented with a single FSM, where the number of states was reduced by utilizing flag signals.
+- **Slave ver2** : The FSM was divided into two parts: an **I2C protocol FSM** and a **Packet FSM**, while maintaining the same datapath as the Slave module. (Additional test cases were included in the testbench to verify the robustness of the design.)
