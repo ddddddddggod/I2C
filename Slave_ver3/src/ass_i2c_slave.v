@@ -5,8 +5,7 @@ input clk,
 input rstb,
 input scl,
 inout sda,
-input [7:0] period,
-.overflow_stop_en(overflow_stop_en)
+input [7:0] period
 );
 
     wire we;
@@ -14,7 +13,6 @@ input [7:0] period,
     wire [7:0] wdata;
     wire [7:0] rdata;
     wire sda_oe;
-    wire full;
 
     //open_drain
     assign sda = sda_oe ? 1'b0 : 1'bz;
@@ -28,8 +26,6 @@ input [7:0] period,
         .scl            (scl),
         .rdata          (rdata),
         .period         (period),
-        .overflow_stop_en(overflow_stop_en),
-        .full           (full),
         .we             (we),
         .addr           (addr),
         .wdata          (wdata),
@@ -44,6 +40,5 @@ input [7:0] period,
         .addr           (addr), 
         .wdata          (wdata),
         .rdata          (rdata),
-        .full           (full)
     );
 endmodule
