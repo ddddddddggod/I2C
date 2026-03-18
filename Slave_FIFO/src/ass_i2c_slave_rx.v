@@ -1,8 +1,7 @@
 module ass_i2c_slave_rx #(
     parameter [6:0] SLAVE_ADDR = 7'h74
 )(
-    input        clk1,
-    input        clk2,
+    input        clk,
     input        rstb,
     input        scl,
     input        sda,
@@ -76,8 +75,8 @@ module ass_i2c_slave_rx #(
         .dw(8),
         .aw(1)
     ) u_rx_fifo (
-        .wr_clk (clk1),
-        .rd_clk (clk2),
+        .wr_clk (clk),
+        .rd_clk (clk),
         .rst    (rstb),
         .clr    (1'b0),
         .din    (rxwdata),
@@ -99,8 +98,8 @@ module ass_i2c_slave_rx #(
         .dw(8),
         .aw(1)
     ) u_tx_fifo (
-        .wr_clk (clk2),
-        .rd_clk (clk1),
+        .wr_clk (clk),
+        .rd_clk (clk),
         .rst    (rstb),
         .clr    (1'b0),
         .din    (rdata), //txwdata
