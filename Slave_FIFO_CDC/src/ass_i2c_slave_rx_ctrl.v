@@ -33,8 +33,6 @@ localparam [2:0] st_tx_ack = 3'd4;
 
 reg [2:0] state, state_n;
 reg       first_byte, rx_done;
-reg       read_pending;
-reg       txre_r;
 
 wire addr_match   = (wdata[7:1] == SLAVE_ADDR);
 wire rx_ack_fall  = (state == st_rx_ack && scl_falling);
@@ -78,10 +76,10 @@ reg init_r;
 always @(posedge clk or negedge rstb) begin
     if (!rstb) begin
         init_r <= 1'b0;
-    end else if (init) begin
-        init_r <= 1'b1;
     end else if (init_ack_r) begin
         init_r <= 1'b0;
+    end else if (init) begin
+        init_r <= 1'b1;
     end
 end
 assign init_req = init_r;
@@ -93,10 +91,10 @@ reg request_r;
 always @(posedge clk or negedge rstb) begin
     if (!rstb) begin
         request_r <= 1'b0;
-    end else if (request) begin
-        request_r <= 1'b1;
     end else if (request_ack_r) begin
         request_r <= 1'b0;
+    end else if (request) begin
+        request_r <= 1'b1;
     end
 end
 assign request_req = request_r;
@@ -161,22 +159,23 @@ assign count_clr  = rx_ack_fall || tx_ack_fall || (state == st_idle) || init;
 
 
 // txre delay : FIFO pop
+reg txre_o;
 always @(posedge clk or negedge rstb) begin
     if (!rstb) begin
-        read_pending <= 1'b0;
+        txre_o <= 1'b0;
     end else if (init) begin
-        read_pending <= 1'b0;
+        txre_o <= 1'b0;
     end else if (request) begin
-        read_pending <= 1'b1;
+        txre_o <= 1'b1;
     end
 end
-assign txre = read_pending && !txempty;
+assign txre = txre_o && !txempty;
+
 
 // load_data delay : data load to serializer
+reg txre_r;
 always @(posedge clk or negedge rstb) begin
     if (!rstb) begin
-        txre_r <= 1'b0;
-    end else if (init) begin
         txre_r <= 1'b0;
     end else begin
         txre_r <= txre;
