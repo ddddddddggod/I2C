@@ -1,7 +1,9 @@
 # I2C
 ---
 *The shift register was implemented as a unified structure without separating RX and TX register. (for Read & Write)
-     ![diagram](Slave/slave.png)
+  <p align="center">
+  <img src="Slave/slave.png" width="700"></p>
+  
 - **Slave** : Implemented with a single FSM, where the number of states was reduced by utilizing flag signals.
 - **Slave ver2** : The FSM was divided into two parts: an **I2C protocol FSM** and a **Packet FSM**, while maintaining the same datapath as the Slave module. (Additional test cases were included in the testbench to verify the robustness of the design.)
 - **Slave ver3** : A period pin was implemented to provide a configurable **hold margin**. The user can adjust the period value through the testbench (TB).
@@ -11,3 +13,7 @@
      ![diagram](Slave_FIFO_CDC/fifo_cdc.png)
 - **Slave FIFO** : Added **RX FIFO** and **TX FIFO** to unify the read and write paths into a single direction (FIFO code sourced from OpenCores). The design uses a single clock.
 - **Slave FIFO CDC** : Added a **handshaking CDC** circuit to the FIFO slave design to handle clock domain crossing.
+     <p align="center">
+  <img src="Slave_FIFO_CDC/handshake.png" width="600"></p>
+     <p align="center">
+     [handshaking CDC] </p>
