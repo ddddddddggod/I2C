@@ -17,3 +17,4 @@
   <img src="Slave_FIFO_CDC/handshake.png" width="600"></p>
      <p align="center">
      [handshaking CDC] </p>
+- **Slave FIFO CDC_2** : control FIFO depth with TB.
